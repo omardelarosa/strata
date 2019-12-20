@@ -20,6 +20,7 @@ class main(pyglet.window.Window):
         # self.base_pic = np.array(Image.open("rabbit.jpg", ))
 
         self.pic = None
+        self.t = 0.0
         self.cell_size = 100
         self.aspect_ratio = width / height
         self.grid_size = int(height / 2)
@@ -31,12 +32,11 @@ class main(pyglet.window.Window):
         print("dimensions", self.image_dimensions, self.arr[0][0])
         self.alive = 1
 
-        self.t = 0
-
     def make_rand_arr(self):
         dim = self.image_dimensions
         # self.arr = self.base_pic
         arr = np.uint8(np.random.uniform(size=dim) * 255)
+        # arr = np.uint8(np.zeros(dim) + (0.1 * self.t) * 255)
         raw_im = Image.fromarray(arr).tobytes()
         pitch = -dim[0] * 3
         self.pic = pyglet.image.ImageData(
