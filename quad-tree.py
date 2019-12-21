@@ -74,11 +74,16 @@ class Node():
 
 
 class QTree():
-    def __init__(self, k, n):
+    def __init__(self, k, w, h):
         self.threshold = k
-        self.points = [Point(random.uniform(
-            0, 10), random.uniform(0, 10)) for x in range(n)]
-        self.root = Node(0, 0, 10, 10, self.points)
+        self.points = []
+        for y in range(0, w):
+            for x in range(0, h):
+                self.points.append(Point(x, y))
+
+        # self.points = [Point(random.uniform(
+        #     0, 10), random.uniform(0, 10)) for x in range(n)]
+        self.root = Node(0, 0, int(w/2), int(h/2), self.points)
 
     def add_point(self, x, y):
         self.points.append(Point(x, y))
@@ -109,13 +114,13 @@ class QTree():
         return
 
 
-q = QTree(2, 10)
+q = QTree(1, 100, 100)
 q.subdivide()
 
-# NUM_POINTS = 10
-# points = [Point(random.uniform(
-#     0, 10), random.uniform(0, 10)) for x in range(NUM_POINTS)]
-# for p in points:
-#     q.add_point(p.x, p.y)
+# # NUM_POINTS = 10
+# # points = [Point(random.uniform(
+# #     0, 10), random.uniform(0, 10)) for x in range(NUM_POINTS)]
+# # for p in points:
+# #     q.add_point(p.x, p.y)
 
 q.graph()
