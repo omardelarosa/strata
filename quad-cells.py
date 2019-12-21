@@ -27,12 +27,9 @@ class Node():
     # box = array of points
     def __init__(self, parent, box=[], val=0.0):
         self.parent = parent
-        par_val = 0.0
 
-        if parent:
-            par_val = parent.value
-
-        self.value = random.random() + par_val
+        self.path_sum = self.compute_path_sum()
+        self.value = self.generate_value()
 
         """
         points in box:
@@ -55,8 +52,26 @@ class Node():
     def __repr__(self):
         return "Node: " + str((self.x, self.y)) + " d: " + str((self.width, self.height))
 
+    def generate_value(self):
+        if random.random() >= 0.5:
+            return 1.0
+        else:
+            return 0.0
+
+    def compute_path_sum(self):
+        s = 0.0
+        p = self.parent
+        while p:
+            s += p.value
+            p = p.parent
+        return s
+
     def set_value(self, val):
         self.value = val
+
+    def update(self):
+        self.path_sum = self.compute_path_sum()
+        self.value = self.generate_value()
 
     def create_children(self):
         if self.width > 1.0 and self.height > 1.0:
@@ -111,6 +126,7 @@ class QTree():
         self.root = Node(None, box)
         self.leaves = []
         self.find_leaves(self.root, self.leaves)
+        # self.tree_sum =
 
     def find_leaves(self, node, leaves):
         if node and not node.children:
@@ -120,6 +136,18 @@ class QTree():
             for child in node.children:
                 self.find_leaves(child, leaves)
         return leaves
+
+    def update_node(self, node):
+        if node:
+            node.update()
+            if node.children:
+                for child in node.children:
+                    self.update_node(child)
+        return None  # void
+
+    # recursively update all nodes
+    def update(self):
+        self.update_node(self.root)
 
 
 class main(pyglet.window.Window):
@@ -157,14 +185,17 @@ class main(pyglet.window.Window):
         dim = self.image_dimensions
         arr = self.arr
 
+        self.q_tree.update()
+
         for l in self.q_tree.leaves:
             x = l.ipos[0]
             y = l.ipos[1]
-            if l.value >= 5.0:
+            # print("path_sum: ", x, y, " -> ", l.path_sum)
+            if l.path_sum >= 4.0:
                 arr[x][y] = BLACK
             # else:
             #     arr[x][y] = WHITE
-        print("frame:", self.t)
+        # print("frame:", self.t)
         # for x in range(dim[0]):
         #     t = 0
         #     for y in range(dim[1]):
@@ -213,6 +244,9 @@ class main(pyglet.window.Window):
     def run(self):
         pyglet.clock.schedule_interval(lambda x: self.render(), 15/60.0)
         pyglet.app.run()
+        # while self.alive != 0:
+        #     time.sleep(30/60.0)
+        #     self.render()
 
 
 if __name__ == '__main__':
