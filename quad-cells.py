@@ -11,13 +11,13 @@ key = pyglet.window.key
 BLACK = np.array([0, 0, 0], dtype='uint8')
 WHITE = np.array([1, 1, 1], dtype='uint8')
 
-STRONG_PATH_THRESHOLD = 4.0
-
+STRONG_PATH_THRESHOLD = 10.0
+RANDOM_BIRTH_PROBABILITY = 0.1
 leaf_nodes = []
 
 
 def generate_random_value():
-    if random.random() >= 0.5:
+    if random.random() <= 0.2:
         return 1.0
     else:
         return 0.0
@@ -38,8 +38,10 @@ class Node():
         self.parent = parent
         self.value = val
         if parent:
+            self.level = parent.level + 1
             self.path_sum = parent.path_sum + parent.value
         else:
+            self.level = 0
             self.path_sum = 0.0
 
         """
@@ -73,13 +75,18 @@ class Node():
             return 0.0
         # case 2: alive and 2 live neighbors -> live (okay)
         elif self.value == 1.0 and n_sum == 2.0:
+            return 1.0
+        # case 2: alive and 3 live neighbors -> dead (overpopulation)
+        elif self.value == 1.0 and n_sum >= 3.0:
             return 0.0
-        # case 3: dead and 3 live neighbors -> live (birth)
+        # case 3: dead and 3 live neighbors -> live (reproduction)
         elif self.value == 0.0 and n_sum >= 3.0:
             return 1.0
         # case 4: n_sum is 0 and is dead, randomly become born if its a strong path
-        elif self.value == 0.0 and n_sum == 0 and self.path_sum >= STRONG_PATH_THRESHOLD:
+        elif self.value == 0.0 and n_sum < 3.0:
             return generate_random_value()
+        elif not self.children and self.path_sum > STRONG_PATH_THRESHOLD:
+            return 1.0
         else:
             print("unhandled case: value: ", self.value, "n_sum: ", n_sum)
             return self.value
@@ -101,8 +108,8 @@ class Node():
         return s
 
     def update_next(self):
-        self.next_value = generate_random_value()  # DEBUG
-        # self.next_value = self.generate_value()
+        # self.next_value = generate_random_value()  # DEBUG
+        self.next_value = self.generate_value()
 
     def swap_values(self):
         self.value = self.next_value
@@ -224,10 +231,16 @@ class main(pyglet.window.Window):
 
     def make_rand_arr(self):
         dim = self.image_dimensions
-        # self.arr = self.base_pic
-        # arr = np.uint8(np.random.uniform(size=dim) * 255)
         self.arr = np.uint8(np.zeros(dim) + 1.0 * 255)
         return self.arr
+
+    def add_to_batch(self, node, level, batch):
+        if node.value >= 1.0 and node.level == level:
+            vs = (node.x, node.y, node.x + node.width, node.y + node.height)
+            vertex_list = batch.add(2, pyglet.gl.GL_TRIANGLE_STRIP, None,
+                                    ('v2f', vs),
+                                    ('c3B', (0, 0, 255, 0, 255, 0))
+                                    )
 
     def update_array(self):
         dim = self.image_dimensions
@@ -235,28 +248,34 @@ class main(pyglet.window.Window):
 
         self.q_tree.update()
 
-        for l in self.q_tree.leaves:
-            x = l.ipos[0]
-            y = l.ipos[1]
-            # print("path_sum: ", x, y, " -> ", l.path_sum)
-            if l.path_sum >= 4.0:
-                arr[x][y] = BLACK
-            # else:
-            #     arr[x][y] = WHITE
-        # print("frame:", self.t)
-        # for x in range(dim[0]):
-        #     t = 0
-        #     for y in range(dim[1]):
-        #         if x % 10 == 0 and y % 10 == 0:
-        #             if self.t % 12 == 0:
-        #                 arr[x][y] = BLACK
+        batch = pyglet.graphics.Batch()
+        level = 4
+        self.q_tree.walk(self.q_tree.root,
+                         lambda n: self.add_to_batch(n, level, batch))
 
-        raw_im = Image.fromarray(arr).tobytes()
-        pitch = -dim[0] * 3
-        self.pic = pyglet.image.ImageData(
-            dim[0], dim[1], 'RGB', raw_im)
-        self.pic.width = self.width
-        self.pic.height = self.height
+        # for l in self.q_tree.leaves:
+        #     x = l.ipos[0]
+        #     y = l.ipos[1]
+        #     # Automata based
+        #     if l.value >= 1.0:
+        #         # arr[x][y] = BLACK
+        #         vertex_list = batch.add(2, pyglet.gl.GL_POINTS, None,
+        #                                 ('v2f', (l.x, l.y, l.x + 1, l.y + 1)),
+        #                                 ('c3B', (0, 0, 255, 0, 255, 0))
+        #                                 )
+
+        #     # Threshold based
+        #     # if l.path_sum >= 4.0:
+        #     #     arr[x][y] = BLACK
+
+        batch.draw()
+
+        # raw_im = Image.fromarray(arr).tobytes()
+        # pitch = -dim[0] * 3
+        # self.pic = pyglet.image.ImageData(
+        #     dim[0], dim[1], 'RGB', raw_im)
+        # self.pic.width = self.width
+        # self.pic.height = self.height
 
     def on_draw(self):
         self.render()
@@ -287,19 +306,16 @@ class main(pyglet.window.Window):
         self.clear()
         self.make_rand_arr()
         self.update_array()
-        self.pic.blit(0, 0, 0)
+        # self.pic.blit(0, 0, 0)
 
         self.flip()
         self.t = self.t + 1
 
     def run(self):
-        pyglet.clock.schedule_interval(lambda x: self.render(), 30/60.0)
+        pyglet.clock.schedule_interval(lambda x: self.render(), 6/60.0)
         pyglet.app.run()
-        # while self.alive != 0:
-        #     time.sleep(30/60.0)
-        #     self.render()
 
 
 if __name__ == '__main__':
-    x = main()
+    x = main(256, 256)
     x.run()
