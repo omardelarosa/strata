@@ -11,7 +11,16 @@ key = pyglet.window.key
 BLACK = np.array([0, 0, 0], dtype='uint8')
 WHITE = np.array([1, 1, 1], dtype='uint8')
 
+STRONG_PATH_THRESHOLD = 4.0
+
 leaf_nodes = []
+
+
+def generate_random_value():
+    if random.random() >= 0.5:
+        return 1.0
+    else:
+        return 0.0
 
 
 class Point():
@@ -27,9 +36,11 @@ class Node():
     # box = array of points
     def __init__(self, parent, box=[], val=0.0):
         self.parent = parent
-
-        self.path_sum = self.compute_path_sum()
-        self.value = self.generate_value()
+        self.value = val
+        if parent:
+            self.path_sum = parent.path_sum + parent.value
+        else:
+            self.path_sum = 0.0
 
         """
         points in box:
@@ -48,30 +59,56 @@ class Node():
         self.height = box[2].y - box[0].y
         self.children = []
         self.create_children()
+        self.neighbors = self.get_neighbors()
 
     def __repr__(self):
         return "Node: " + str((self.x, self.y)) + " d: " + str((self.width, self.height))
 
     def generate_value(self):
-        if random.random() >= 0.5:
-            return 1.0
-        else:
+        n_sum = 0.0
+        for n in self.neighbors:
+            n_sum += n.value
+        # case 1: alive and 1 live neighbor -> die (underpopulation)
+        if self.value == 1.0 and n_sum <= 1.0:
             return 0.0
+        # case 2: alive and 2 live neighbors -> live (okay)
+        elif self.value == 1.0 and n_sum == 2.0:
+            return 0.0
+        # case 3: dead and 3 live neighbors -> live (birth)
+        elif self.value == 0.0 and n_sum >= 3.0:
+            return 1.0
+        # case 4: n_sum is 0 and is dead, randomly become born if its a strong path
+        elif self.value == 0.0 and n_sum == 0 and self.path_sum >= STRONG_PATH_THRESHOLD:
+            return generate_random_value()
+        else:
+            print("unhandled case: value: ", self.value, "n_sum: ", n_sum)
+            return self.value
+            # return 0.0
+
+    def get_neighbors(self):
+        if not self.parent:
+            return []
+        else:
+            return list(filter(lambda x: x != self, self.parent.children))
 
     def compute_path_sum(self):
         s = 0.0
         p = self.parent
-        while p:
+        while p != None:
             s += p.value
             p = p.parent
+        self.path_sum = s
         return s
 
-    def set_value(self, val):
-        self.value = val
+    def update_next(self):
+        self.next_value = generate_random_value()  # DEBUG
+        # self.next_value = self.generate_value()
 
-    def update(self):
+    def swap_values(self):
+        self.value = self.next_value
+
+    def update_path_sums(self):
         self.path_sum = self.compute_path_sum()
-        self.value = self.generate_value()
 
     def create_children(self):
         if self.width > 1.0 and self.height > 1.0:
@@ -109,10 +146,10 @@ class Node():
             box3 = [p4, p5, p7, p8]
 
             # append children
-            self.children.append(Node(self, box0))
-            self.children.append(Node(self, box1))
-            self.children.append(Node(self, box2))
-            self.children.append(Node(self, box3))
+            self.children.append(Node(self, box0, generate_random_value()))
+            self.children.append(Node(self, box1, generate_random_value()))
+            self.children.append(Node(self, box2, generate_random_value()))
+            self.children.append(Node(self, box3, generate_random_value()))
 
 
 class QTree():
@@ -123,10 +160,9 @@ class QTree():
             Point(0, h),
             Point(w, h)
         ]
-        self.root = Node(None, box)
+        self.root = Node(None, box, generate_random_value())
         self.leaves = []
         self.find_leaves(self.root, self.leaves)
-        # self.tree_sum =
 
     def find_leaves(self, node, leaves):
         if node and not node.children:
@@ -137,17 +173,29 @@ class QTree():
                 self.find_leaves(child, leaves)
         return leaves
 
-    def update_node(self, node):
+    def walk(self, node, f):
+        # generate next values
         if node:
-            node.update()
+            f(node)
             if node.children:
                 for child in node.children:
-                    self.update_node(child)
+                    self.walk(child, f)
         return None  # void
+
+    def update_node_next(self, node):
+        self.walk(node, lambda n: n.update_next())
+
+    def swap_node_values(self, node):
+        self.walk(node, lambda n: n.swap_values())
+
+    def compute_path_sums(self, node):
+        self.walk(node, lambda n: n.compute_path_sum())
 
     # recursively update all nodes
     def update(self):
-        self.update_node(self.root)
+        self.update_node_next(self.root)
+        self.swap_node_values(self.root)
+        self.compute_path_sums(self.root)
 
 
 class main(pyglet.window.Window):
@@ -232,17 +280,20 @@ class main(pyglet.window.Window):
         self.keys[symbol] = True
 
     def render(self):
+        # end when escape is pressed
+        if self.alive == 0:
+            exit()
+
         self.clear()
         self.make_rand_arr()
         self.update_array()
         self.pic.blit(0, 0, 0)
-        # pic.blit(self.t % self.width, self.t % self.height, 0)
 
         self.flip()
         self.t = self.t + 1
 
     def run(self):
-        pyglet.clock.schedule_interval(lambda x: self.render(), 15/60.0)
+        pyglet.clock.schedule_interval(lambda x: self.render(), 30/60.0)
         pyglet.app.run()
         # while self.alive != 0:
         #     time.sleep(30/60.0)
