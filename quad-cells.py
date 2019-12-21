@@ -12,7 +12,7 @@ BLACK = np.array([0, 0, 0], dtype='uint8')
 WHITE = np.array([1, 1, 1], dtype='uint8')
 
 STRONG_PATH_THRESHOLD = 10.0
-RANDOM_BIRTH_PROBABILITY = 0.1
+RANDOM_BIRTH_PROBABILITY = 0.5
 leaf_nodes = []
 
 
@@ -209,7 +209,7 @@ class main(pyglet.window.Window):
     def __init__(self, width=256, height=256, fps=False, *args, **kwargs):
         super(main, self).__init__(width, height, *args, **kwargs)
         self.x, self.y = 0, 0
-
+        self.is_rendering = False
         self.keys = {}
 
         self.mouse_x = 0
@@ -234,48 +234,57 @@ class main(pyglet.window.Window):
         self.arr = np.uint8(np.zeros(dim) + 1.0 * 255)
         return self.arr
 
-    def add_to_batch(self, node, level, batch):
+    def add_to_batch(self, node, level, batch, colors):
         if node.value >= 1.0 and node.level == level:
             vs = (node.x, node.y, node.x + node.width, node.y + node.height)
-            vertex_list = batch.add(2, pyglet.gl.GL_TRIANGLE_STRIP, None,
+            vertex_list = batch.add(2, pyglet.gl.GL_TRIANGLES, None,
                                     ('v2f', vs),
-                                    ('c3B', (0, 0, 255, 0, 255, 0))
+                                    ('c3B', colors)
                                     )
 
-    def update_array(self):
-        dim = self.image_dimensions
-        arr = self.arr
-
-        self.q_tree.update()
-
+    def draw_triangles(self):
+        # Batch drawing
         batch = pyglet.graphics.Batch()
-        level = 4
+        levels = [3, 4, 5]
+        colors = [(0, 0, 255, 0, 255, 0), (255, 0, 255, 127, 0, 0)]
+
+        # # Multi-layers per frame
+        # for i in range(len(levels)):
+        #     self.q_tree.walk(self.q_tree.root,
+        #                      lambda n: self.add_to_batch(n, levels[i], batch, colors[i % 2]))
+
+        # Single layer per frame
+        i = int(self.t) % 3
         self.q_tree.walk(self.q_tree.root,
-                         lambda n: self.add_to_batch(n, level, batch))
-
-        # for l in self.q_tree.leaves:
-        #     x = l.ipos[0]
-        #     y = l.ipos[1]
-        #     # Automata based
-        #     if l.value >= 1.0:
-        #         # arr[x][y] = BLACK
-        #         vertex_list = batch.add(2, pyglet.gl.GL_POINTS, None,
-        #                                 ('v2f', (l.x, l.y, l.x + 1, l.y + 1)),
-        #                                 ('c3B', (0, 0, 255, 0, 255, 0))
-        #                                 )
-
-        #     # Threshold based
-        #     # if l.path_sum >= 4.0:
-        #     #     arr[x][y] = BLACK
+                         lambda n: self.add_to_batch(
+                             n, levels[i], batch, colors[i % 2]))
 
         batch.draw()
 
-        # raw_im = Image.fromarray(arr).tobytes()
-        # pitch = -dim[0] * 3
-        # self.pic = pyglet.image.ImageData(
-        #     dim[0], dim[1], 'RGB', raw_im)
-        # self.pic.width = self.width
-        # self.pic.height = self.height
+    def draw_pixels(self):
+        dim = self.image_dimensions
+        arr = self.arr
+        for l in self.q_tree.leaves:
+            x = l.ipos[0]
+            y = l.ipos[1]
+            # # Automata based
+            # if l.value >= 1.0:
+            #     arr[x][y] = BLACK
+            # Threshold based
+            if l.path_sum >= 4.0:
+                arr[x][y] = BLACK
+
+        raw_im = Image.fromarray(arr).tobytes()
+        pitch = -dim[0] * 3
+        self.pic = pyglet.image.ImageData(
+            dim[0], dim[1], 'RGB', raw_im)
+        self.pic.width = self.width
+        self.pic.height = self.height
+        self.pic.blit(0, 0, 0)
+
+    def update_array(self):
+        dim = self.image_dimensions
+        self.q_tree.update()
 
     def on_draw(self):
         self.render()
@@ -306,7 +315,12 @@ class main(pyglet.window.Window):
         self.clear()
         self.make_rand_arr()
         self.update_array()
-        # self.pic.blit(0, 0, 0)
+
+        # draw triangles
+        # self.draw_triangles()
+
+        # draw pixels
+        self.draw_pixels()
 
         self.flip()
         self.t = self.t + 1
