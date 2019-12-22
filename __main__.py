@@ -14,6 +14,7 @@ parser = argparse.ArgumentParser(
     description='Draw quadcell graphics', prog='quadcells')
 parser.add_argument('--width', default=256, action='store')
 parser.add_argument('--height', default=256, action='store')
+parser.add_argument('--depth', default=7, action='store')
 
 args = parser.parse_args()
 
@@ -22,7 +23,7 @@ WHITE = np.array([1, 1, 1], dtype='uint8')
 
 
 class main(pyglet.window.Window):
-    def __init__(self, width=256, height=256, fps=False, *args, **kwargs):
+    def __init__(self, width=256, height=256, depth=5, fps=False, *args, **kwargs):
         super(main, self).__init__(width, height, *args, **kwargs)
         self.x, self.y = 0, 0
         self.is_rendering = False
@@ -36,8 +37,11 @@ class main(pyglet.window.Window):
         self.cell_size = 100
         self.aspect_ratio = width / height
 
+        # maximum resolution of levels to draw
+        self.depth = depth
+
         # self.q_tree = QTree(self.width, self.height, upward)
-        self.q_tree = QTree(self.width, self.height, gamma)
+        self.q_tree = QTree(self.width, self.height, gamma, self.depth)
         # self.q_tree = QTree(self.width, self.height, conway)
 
         # self.grid_size = int(height / 2)
@@ -79,7 +83,7 @@ class main(pyglet.window.Window):
     def draw_triangles(self):
         # Batch drawing
         batch = pyglet.graphics.Batch()
-        levels = int(math.log(self.width, 2))
+        levels = min(self.depth, int(math.log(self.width, 2)) + 1)
         colors = [(100, 100, 255), (0, 255, 0), (255, 0, 255), (127, 0, 0)]
         color = colors[0]  # TODO: make this configurable
         alpha = int(255 / levels)
@@ -154,7 +158,7 @@ class main(pyglet.window.Window):
         self.clear()
         # self.make_rand_arr()
         self.update_array()
-        print("Population: ", self.q_tree.population)
+        # print("Population: ", self.q_tree.population)
         # draw triangles
         self.draw_triangles()
 
@@ -171,5 +175,5 @@ class main(pyglet.window.Window):
 
 
 if __name__ == '__main__':
-    x = main(int(args.width), int(args.height))
+    x = main(int(args.width), int(args.height), int(args.depth))
     x.run()

@@ -58,10 +58,17 @@ def gamma(node):
             n_sum -= c.value
 
     result = 0.0
-    RAND_DEATH_BIRTH_RATE = 0.001
-    REPRODUCTIVE_EQUILIBRIUM_STATE = 1.0
+
+    # Probabilitty of random birth at leaves
+    BIRTH_RATE = 0.0001
+
+    # Probability of random death at any level
+    DEATH_RATE = 0.0001
+
+    # Difference between children, parents and neighbors required to repoduce
+    REPRODUCTION_THRESHOLD = 1.0
     # case 0: random death
-    if generate_random_value(RAND_DEATH_BIRTH_RATE) == 1.0:
+    if node.value == 1.0 and generate_random_value(DEATH_RATE) == 1.0:
         result = 0.0
     # case 1: alive and more children than neighborhood can support -> die (underpopulation)
     elif node.value == 1.0 and n_sum <= 0.0:
@@ -73,12 +80,12 @@ def gamma(node):
     elif node.value == 0.0 and n_sum >= 1.0:
         result = 1.0
     # case 3: dead and relative equilibrium between neighbors and children -> live (reproduction)
-    elif node.value == 0.0 and abs(n_sum) <= REPRODUCTIVE_EQUILIBRIUM_STATE:
+    elif node.value == 0.0 and abs(n_sum) <= REPRODUCTION_THRESHOLD:
         result = 1.0
     # case 4: random spawning at leaf nodes, offset by random death
     elif not node.children:
         result = generate_random_value(
-            RAND_DEATH_BIRTH_RATE)  # spawn at leaves randomly
+            BIRTH_RATE)  # spawn at leaves randomly
     else:
         # print("unhandled case: value: ", node.value, "n_sum: ", n_sum)
         result = node.value
@@ -130,7 +137,7 @@ class Point():
 
 class Node():
     # box = array of points
-    def __init__(self, parent, box=[], val=0.0, f=lambda x: x):
+    def __init__(self, parent, box=[], val=0.0, f=lambda x: x, depth_max=math.inf):
         self.parent = parent
         if parent != None:
             self.level = parent.level + 1
@@ -160,7 +167,10 @@ class Node():
         self.width = box[1].x - box[0].x
         self.height = box[2].y - box[0].y
         self.children = []
-        self.create_children()
+
+        # create  children if depth max wasn't reached
+        if self.level < depth_max:
+            self.create_children(depth_max)
         self.neighbors = self.get_neighbors()
 
     def __repr__(self):
@@ -191,7 +201,7 @@ class Node():
     def update_path_sums(self):
         self.path_sum = self.compute_path_sum()
 
-    def create_children(self):
+    def create_children(self, depth_max):
         if self.width > 1.0 and self.height > 1.0:
             h_width = self.width / 2
             h_height = self.height / 2
@@ -227,21 +237,25 @@ class Node():
             box3 = [p4, p5, p7, p8]
 
             # append children
-            self.children.append(Node(self, box0, generate_random_value()))
-            self.children.append(Node(self, box1, generate_random_value()))
-            self.children.append(Node(self, box2, generate_random_value()))
-            self.children.append(Node(self, box3, generate_random_value()))
+            self.children.append(
+                Node(self, box0, generate_random_value(), depth_max))
+            self.children.append(
+                Node(self, box1, generate_random_value(), depth_max))
+            self.children.append(
+                Node(self, box2, generate_random_value(), depth_max))
+            self.children.append(
+                Node(self, box3, generate_random_value(), depth_max))
 
 
 class QTree():
-    def __init__(self, w, h, f):
+    def __init__(self, w, h, f, d):
         box = [
             Point(0, 0),
             Point(w, 0),
             Point(0, h),
             Point(w, h)
         ]
-        self.root = Node(None, box, generate_random_value(), f)
+        self.root = Node(None, box, generate_random_value(), f, d)
         self.leaves = []
         self.find_leaves(self.root, self.leaves)
         self.population = 0.0
