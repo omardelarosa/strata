@@ -3,7 +3,7 @@ from pyglet.gl import *
 import numpy as np
 import time
 from PIL import Image
-from quadtree import QTree, conway, gamma
+from quadtree import QTree, conway, gamma, upward
 import argparse
 
 key = pyglet.window.key
@@ -35,6 +35,7 @@ class main(pyglet.window.Window):
         self.cell_size = 100
         self.aspect_ratio = width / height
 
+        # self.q_tree = QTree(self.width, self.height, upward)
         self.q_tree = QTree(self.width, self.height, gamma)
         # self.q_tree = QTree(self.width, self.height, conway)
 
@@ -42,7 +43,6 @@ class main(pyglet.window.Window):
         self.image_dimensions = (height, width, 3)
         self.make_rand_arr()
         self.update_array()
-        # print("dimensions", self.image_dimensions, self.arr[0][0])
         self.alive = 1
 
         # GL Options
@@ -78,7 +78,7 @@ class main(pyglet.window.Window):
     def draw_triangles(self):
         # Batch drawing
         batch = pyglet.graphics.Batch()
-        levels = [1, 2, 3, 4, 5, 6]
+        levels = [0, 1, 2, 3, 4, 5, 6, 7]
         colors = [(100, 100, 255), (0, 255, 0), (255, 0, 255), (127, 0, 0)]
 
         # # Multi-layers per frame
@@ -152,7 +152,7 @@ class main(pyglet.window.Window):
         self.clear()
         # self.make_rand_arr()
         self.update_array()
-
+        print("Population: ", self.q_tree.population)
         # draw triangles
         self.draw_triangles()
 

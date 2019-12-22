@@ -14,6 +14,35 @@ def generate_random_value(prob=RANDOM_BIRTH_PROBABILITY):
 # A function that uses the balance between children and neighbors to determin alive-ness
 
 
+def upward(node):
+    n_sum = 0.0
+    # children detract
+    if node.children:
+        for c in node.children:
+            n_sum += c.value
+
+    # parent value
+    p_val = 0.0
+    if node.parent != None and node.parent.value:
+        p_val += node.parent.value
+
+    # propogate up from children
+    if p_val == 0.0 and not node.children:
+        return generate_random_value(0.001)
+
+    if p_val == 1.0:
+        return node.value
+
+    if n_sum >= 2.0:
+        return 0.0
+    # if p_val == 0.0 and n_sum == 0.0:
+    #     return generate_random_value(0.00003)
+
+    # fallback
+    # print("unhandled case: ", p_val, n_sum)
+    return 0.0
+
+
 def gamma(node):
     n_sum = 0.0
     for n in node.neighbors:
@@ -30,7 +59,7 @@ def gamma(node):
 
     result = 0.0
     # case 0: random death
-    if generate_random_value(0.0001) == 1.0:
+    if generate_random_value(0.001) == 1.0:
         result = 0.0
     # case 1: alive and 1 live neighbor -> die (underpopulation)
     elif node.value == 1.0 and n_sum <= 0.0:
@@ -42,10 +71,12 @@ def gamma(node):
     elif node.value == 0.0 and n_sum >= 1.0:
         result = 1.0
     # case 3: dead and 3 live neighbors -> live (reproduction)
-    elif node.value == 0.0 and n_sum <= 1.0:
-        result = generate_random_value(0.01)
+    elif node.value == 0.0 and abs(n_sum) <= 1.0:
+        result = 1.0
+    elif not node.children:
+        result = generate_random_value(0.001)  # spawn at leaves randomly
     else:
-        print("unhandled case: value: ", node.value, "n_sum: ", n_sum)
+        # print("unhandled case: value: ", node.value, "n_sum: ", n_sum)
         result = node.value
     return result
 
@@ -97,14 +128,15 @@ class Node():
     # box = array of points
     def __init__(self, parent, box=[], val=0.0, f=lambda x: x):
         self.parent = parent
-        self.value = val
-        if parent:
+        if parent != None:
             self.level = parent.level + 1
             self.path_sum = parent.path_sum + parent.value
             self.f = parent.f  # inherited generator function
+            self.value = val
         else:
             self.level = 0
             self.path_sum = 0.0
+            self.value = val
             self.f = f  # generator function
 
         """
@@ -208,6 +240,7 @@ class QTree():
         self.root = Node(None, box, generate_random_value(), f)
         self.leaves = []
         self.find_leaves(self.root, self.leaves)
+        self.population = 0.0
 
     def find_leaves(self, node, leaves):
         if node and not node.children:
@@ -227,10 +260,18 @@ class QTree():
                     self.walk(child, f)
         return None  # void
 
+    def update_population(self):
+        self.population = 0.0
+        self.walk(
+            self.root, lambda x: self.increment_population(x))
+
+    def increment_population(self, x):
+        self.population += x.value
+
     def update_node_next(self, node):
         self.walk(node, lambda n: n.update_next())
 
-    def swap_node_values(self, node):
+    def swap_node_values(self, node, f=lambda x: x):
         self.walk(node, lambda n: n.swap_values())
 
     def compute_path_sums(self, node):
@@ -238,6 +279,8 @@ class QTree():
 
     # recursively update all nodes
     def update(self):
+        # NOTE: this is sequential in order to avoid race conditions
         self.update_node_next(self.root)
         self.swap_node_values(self.root)
         self.compute_path_sums(self.root)
+        self.update_population()
