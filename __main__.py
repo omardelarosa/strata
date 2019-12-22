@@ -11,10 +11,19 @@ key = pyglet.window.key
 
 # ARG Parsing
 parser = argparse.ArgumentParser(
-    description='Draw quadcell graphics', prog='quadcells')
-parser.add_argument('--width', default=256, action='store')
-parser.add_argument('--height', default=256, action='store')
-parser.add_argument('--depth', default=7, action='store')
+    description='Renderer for hierarchical cellular automata', prog='strata')
+parser.add_argument('--width', default=256, action='store',
+                    help='Width of window')
+parser.add_argument('--height', default=256, action='store',
+                    help='Height of window')
+parser.add_argument('--depth', default=7, action='store',
+                    help='Maximum recursion depth of tree')
+parser.add_argument('--slice', default=False, action='store',
+                    help='Show only a 1-layer slice')
+parser.add_argument('--out', default='', action='store',
+                    help='Output directory for screenshots')
+parser.add_argument('--steps', default=-1, action='store',
+                    help='Number of steps before terminating (-1 == infinity)')
 
 args = parser.parse_args()
 
@@ -23,7 +32,7 @@ WHITE = np.array([1, 1, 1], dtype='uint8')
 
 
 class main(pyglet.window.Window):
-    def __init__(self, width=256, height=256, depth=5, fps=False, *args, **kwargs):
+    def __init__(self, width=256, height=256, depth=5, slice_only=False, out_dir='', steps=-1, fps=False, *args, **kwargs):
         super(main, self).__init__(width, height, *args, **kwargs)
         self.x, self.y = 0, 0
         self.is_rendering = False
@@ -32,13 +41,19 @@ class main(pyglet.window.Window):
         self.mouse_x = 0
         self.mouse_y = 0
 
+        if steps == -1:
+            self.steps = math.inf
+        else:
+            self.steps = steps
         self.pic = None
-        self.t = 0.0
+        self.t = 0
         self.cell_size = 100
         self.aspect_ratio = width / height
 
         # maximum resolution of levels to draw
         self.depth = depth
+        self.slice_only = slice_only
+        self.out_dir = out_dir
 
         # self.q_tree = QTree(self.width, self.height, upward)
         self.q_tree = QTree(self.width, self.height, gamma, self.depth)
@@ -46,7 +61,7 @@ class main(pyglet.window.Window):
 
         # self.grid_size = int(height / 2)
         self.image_dimensions = (height, width, 3)
-        self.make_rand_arr()
+        self.make_arr()
         self.update_array()
         self.alive = 1
 
@@ -55,11 +70,15 @@ class main(pyglet.window.Window):
         pyglet.gl.glBlendFunc(pyglet.gl.GL_SRC_ALPHA,
                               pyglet.gl.GL_ONE_MINUS_SRC_ALPHA)
 
+        # Render initial state
+        if self.out_dir != '':
+            self.draw_pixels()
+
         self.is_rendering = False
 
-    def make_rand_arr(self):
+    def make_arr(self):
         dim = self.image_dimensions
-        self.arr = np.uint8(np.zeros(dim) + 1.0 * 255)
+        self.arr = np.uint8(np.zeros(dim))
         return self.arr
 
     def add_to_batch(self, node, level, batch, color, alpha):
@@ -80,46 +99,39 @@ class main(pyglet.window.Window):
                                     ('c4B', colors)
                                     )
 
-    def draw_triangles(self):
+    def draw_tree(self):
         # Batch drawing
         batch = pyglet.graphics.Batch()
         levels = min(self.depth, int(math.log(self.width, 2)) + 1)
         colors = [(100, 100, 255), (0, 255, 0), (255, 0, 255), (127, 0, 0)]
         color = colors[0]  # TODO: make this configurable
         alpha = int(255 / levels)
-        # # Multi-layers per frame
-        for i in range(levels):
+        if self.slice_only:
+            # Single layer per frame
+            d = self.depth
+            al = 255
             self.q_tree.walk(self.q_tree.root,
-                             lambda n: self.add_to_batch(n, i, batch, color, alpha))
-
-        # Single layer per frame
-        # i = int(self.t) % 3
-        # self.q_tree.walk(self.q_tree.root,
-        #                  lambda n: self.add_to_batch(
-        #                      n, levels[i], batch, colors[i % 4]))
+                             lambda n: self.add_to_batch(
+                                 n, d, batch, color, al))
+        else:
+            # # Multi-layers per frame
+            for i in range(levels):
+                self.q_tree.walk(self.q_tree.root,
+                                 lambda n: self.add_to_batch(n, i, batch, color, alpha))
 
         batch.draw()
 
+    # Used to generate an image from a quad tree
     def draw_pixels(self):
         dim = self.image_dimensions
         arr = self.arr
         for l in self.q_tree.leaves:
             x = l.ipos[0]
             y = l.ipos[1]
-            # # Automata based
-            # if l.value >= 1.0:
-            #     arr[x][y] = BLACK
-            # Threshold based
-            if l.path_sum >= 4.0:
-                arr[x][y] = BLACK
+            arr[x][y] = np.uint8((l.path_sum / l.level) * 255)
 
-        raw_im = Image.fromarray(arr).tobytes()
-        pitch = -dim[0] * 3
-        self.pic = pyglet.image.ImageData(
-            dim[0], dim[1], 'RGB', raw_im)
-        self.pic.width = self.width
-        self.pic.height = self.height
-        self.pic.blit(0, 0, 0)
+        im = Image.fromarray(arr)
+        im.save(self.out_dir + "/t_" + str(self.t) + ".png")
 
     def update_array(self):
         dim = self.image_dimensions
@@ -147,6 +159,7 @@ class main(pyglet.window.Window):
         self.keys[symbol] = True
 
     def render(self):
+
         # end when escape is pressed
         if self.alive == 0:
             exit()
@@ -155,19 +168,25 @@ class main(pyglet.window.Window):
             return
         self.is_rendering = True
 
-        self.clear()
-        # self.make_rand_arr()
-        self.update_array()
-        # print("Population: ", self.q_tree.population)
-        # draw triangles
-        self.draw_triangles()
+        # set frame label t
+        self.t = self.t + 1
 
-        # # draw pixels
-        # self.draw_pixels()
+        self.clear()
+        self.update_array()
+
+        # draw vertices from tree
+        self.draw_tree()
+
+        if self.out_dir != '':
+            self.draw_pixels()
 
         self.flip()
-        self.t = self.t + 1
+
         self.is_rendering = False
+
+        # Terminate after steps
+        if self.t >= self.steps:
+            exit()
 
     def run(self):
         pyglet.clock.schedule_interval(lambda x: self.render(), 1/60.0)
@@ -175,5 +194,6 @@ class main(pyglet.window.Window):
 
 
 if __name__ == '__main__':
-    x = main(int(args.width), int(args.height), int(args.depth))
+    x = main(int(args.width), int(args.height),
+             int(args.depth), bool(args.slice), str(args.out), int(args.steps))
     x.run()

@@ -12,13 +12,20 @@ pip install pyglet numpy
 
 ## Usage
 
-```bash
-git clone {repo_url}
-cd strata
-python . \
-    --width {pixels_wide} \
-    --height {pixels_height} \
-    --depth {maximum_recursion_depth}
+```
+usage: strata [-h] [--width WIDTH] [--height HEIGHT] [--depth DEPTH]
+              [--slice SLICE] [--out OUT] [--steps STEPS]
+
+Renderer for hierarchical cellular automata
+
+optional arguments:
+  -h, --help       show this help message and exit
+  --width WIDTH    Width of window
+  --height HEIGHT  Height of window
+  --depth DEPTH    Maximum recursion depth of tree
+  --slice SLICE    Show only a 1-layer slice
+  --out OUT        Output directory for screenshots
+  --steps STEPS    Number of steps before terminating (-1 == infinity)}
 ```
 
 ## Examples
