@@ -2,6 +2,7 @@ from pyglet import *
 from pyglet.gl import *
 import numpy as np
 import time
+import math
 from PIL import Image
 from quadtree import QTree, conway, gamma, upward
 import argparse
@@ -78,13 +79,14 @@ class main(pyglet.window.Window):
     def draw_triangles(self):
         # Batch drawing
         batch = pyglet.graphics.Batch()
-        levels = [0, 1, 2, 3, 4, 5, 6, 7]
+        levels = int(math.log(self.width, 2))
         colors = [(100, 100, 255), (0, 255, 0), (255, 0, 255), (127, 0, 0)]
-
+        color = colors[0]  # TODO: make this configurable
+        alpha = int(255 / levels)
         # # Multi-layers per frame
-        for i in range(len(levels)):
+        for i in range(levels):
             self.q_tree.walk(self.q_tree.root,
-                             lambda n: self.add_to_batch(n, levels[i], batch, colors[0], 51))
+                             lambda n: self.add_to_batch(n, i, batch, color, alpha))
 
         # Single layer per frame
         # i = int(self.t) % 3

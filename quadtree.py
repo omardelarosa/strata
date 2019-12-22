@@ -58,23 +58,27 @@ def gamma(node):
             n_sum -= c.value
 
     result = 0.0
+    RAND_DEATH_BIRTH_RATE = 0.001
+    REPRODUCTIVE_EQUILIBRIUM_STATE = 1.0
     # case 0: random death
-    if generate_random_value(0.001) == 1.0:
+    if generate_random_value(RAND_DEATH_BIRTH_RATE) == 1.0:
         result = 0.0
-    # case 1: alive and 1 live neighbor -> die (underpopulation)
+    # case 1: alive and more children than neighborhood can support -> die (underpopulation)
     elif node.value == 1.0 and n_sum <= 0.0:
         result = 0.0
-    # case 2: alive and 2 live neighbors -> live (okay)
+    # case 2: alive and more neighbors -> live (okay)
     elif node.value == 1.0 and n_sum > 0.0:
         result = 1.0
-    # case 2: alive and 3 live neighbors -> dead (overpopulation)
+    # case 2: alive and too many neighbors -> dead (overpopulation)
     elif node.value == 0.0 and n_sum >= 1.0:
         result = 1.0
-    # case 3: dead and 3 live neighbors -> live (reproduction)
-    elif node.value == 0.0 and abs(n_sum) <= 1.0:
+    # case 3: dead and relative equilibrium between neighbors and children -> live (reproduction)
+    elif node.value == 0.0 and abs(n_sum) <= REPRODUCTIVE_EQUILIBRIUM_STATE:
         result = 1.0
+    # case 4: random spawning at leaf nodes, offset by random death
     elif not node.children:
-        result = generate_random_value(0.001)  # spawn at leaves randomly
+        result = generate_random_value(
+            RAND_DEATH_BIRTH_RATE)  # spawn at leaves randomly
     else:
         # print("unhandled case: value: ", node.value, "n_sum: ", n_sum)
         result = node.value
