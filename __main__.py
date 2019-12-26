@@ -4,7 +4,7 @@ import numpy as np
 import time
 import math
 from PIL import Image
-from quadtree import QTree, conway, gamma, upward
+from quadtree import QTree, conway, gamma, upward, generate_random_value
 import argparse
 
 key = pyglet.window.key
@@ -29,6 +29,8 @@ args = parser.parse_args()
 
 BLACK = np.array([0, 0, 0], dtype='uint8')
 WHITE = np.array([1, 1, 1], dtype='uint8')
+
+INITIAL_LEAF_BIRTH_PROBABILIY = 0.05
 
 
 class main(pyglet.window.Window):
@@ -57,6 +59,9 @@ class main(pyglet.window.Window):
 
         # self.q_tree = QTree(self.width, self.height, upward)
         self.q_tree = QTree(self.width, self.height, gamma, self.depth)
+
+        # Initialize the tree
+        self.q_tree.setup(lambda x: self.tree_setup(x))
         # self.q_tree = QTree(self.width, self.height, conway)
 
         # self.grid_size = int(height / 2)
@@ -75,6 +80,11 @@ class main(pyglet.window.Window):
             self.draw_pixels()
 
         self.is_rendering = False
+
+    def tree_setup(self, node):
+        # use init function on itself
+        if not node.children:
+            node.value = generate_random_value(INITIAL_LEAF_BIRTH_PROBABILIY)
 
     def make_arr(self):
         dim = self.image_dimensions

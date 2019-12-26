@@ -44,18 +44,24 @@ def upward(node):
 
 
 def gamma(node):
+    # initliazation, aka t=0
+    if node == None:
+        return 0.0
+
     n_sum = 0.0
     for n in node.neighbors:
         n_sum += n.value
 
+    p_val = 0.0
     # add parent to n_sum
     if node.parent:
-        n_sum += node.parent.value
+        p_val = node.parent.value
 
+    c_sum = 0.0
     # children detract
     if node.children:
         for c in node.children:
-            n_sum -= c.value
+            c_sum += c.value
 
     result = 0.0
 
@@ -67,25 +73,35 @@ def gamma(node):
 
     # Difference between children, parents and neighbors required to repoduce
     REPRODUCTION_THRESHOLD = 1.0
+
+    # net value
+    g_sum = n_sum + p_val - c_sum
+
     # case 0: random death
     if node.value == 1.0 and generate_random_value(DEATH_RATE) == 1.0:
         result = 0.0
+    # case 0.1: leaf node
+    elif not node.children:
+        if node.value == 0.0:
+            result = generate_random_value(BIRTH_RATE)
+        else:
+            result = node.value
     # case 1: alive and more children than neighborhood can support -> die (underpopulation)
-    elif node.value == 1.0 and n_sum <= 0.0:
+    elif node.value == 1.0 and g_sum <= 0.0:
         result = 0.0
     # case 2: alive and more neighbors -> live (okay)
-    elif node.value == 1.0 and n_sum > 0.0:
+    elif node.value == 1.0 and g_sum > 0.0:
         result = 1.0
     # case 2: alive and too many neighbors -> dead (overpopulation)
-    elif node.value == 0.0 and n_sum >= 1.0:
+    elif node.value == 0.0 and g_sum >= 1.0:
         result = 1.0
     # case 3: dead and relative equilibrium between neighbors and children -> live (reproduction)
-    elif node.value == 0.0 and abs(n_sum) <= REPRODUCTION_THRESHOLD:
+    elif node.value == 0.0 and abs(g_sum) <= REPRODUCTION_THRESHOLD:
         result = 1.0
-    # case 4: random spawning at leaf nodes, offset by random death
-    elif not node.children:
-        result = generate_random_value(
-            BIRTH_RATE)  # spawn at leaves randomly
+    # # case 4: random spawning at leaf nodes, offset by random death
+    # elif not node.children:
+    #     result = generate_random_value(
+    #         BIRTH_RATE)  # spawn at leaves randomly
     else:
         # print("unhandled case: value: ", node.value, "n_sum: ", n_sum)
         result = node.value
@@ -137,18 +153,18 @@ class Point():
 
 class Node():
     # box = array of points
-    def __init__(self, parent, box=[], val=0.0, f=lambda x: x, depth_max=math.inf):
+    def __init__(self, parent, box=[], f=lambda x: x, depth_max=math.inf):
         self.parent = parent
         if parent != None:
             self.level = parent.level + 1
             self.path_sum = parent.path_sum + parent.value
             self.f = parent.f  # inherited generator function
-            self.value = val
+            self.value = f(None)
         else:
             self.level = 0
             self.path_sum = 0.0
-            self.value = val
-            self.f = f  # generator function
+            self.value = f(None)
+            self.f = f
 
         """
         points in box:
@@ -238,13 +254,13 @@ class Node():
 
             # append children
             self.children.append(
-                Node(self, box0, generate_random_value(), depth_max))
+                Node(self, box0, self.f, depth_max))
             self.children.append(
-                Node(self, box1, generate_random_value(), depth_max))
+                Node(self, box1, self.f, depth_max))
             self.children.append(
-                Node(self, box2, generate_random_value(), depth_max))
+                Node(self, box2, self.f, depth_max))
             self.children.append(
-                Node(self, box3, generate_random_value(), depth_max))
+                Node(self, box3, self.f, depth_max))
 
 
 class QTree():
@@ -255,10 +271,14 @@ class QTree():
             Point(0, h),
             Point(w, h)
         ]
-        self.root = Node(None, box, generate_random_value(), f, d)
+        self.root = Node(None, box, f, d)
         self.leaves = []
         self.find_leaves(self.root, self.leaves)
         self.population = 0.0
+
+    # Setup the tree in some way
+    def setup(self, f):
+        self.walk(self.root, f)
 
     def find_leaves(self, node, leaves):
         if node and not node.children:
