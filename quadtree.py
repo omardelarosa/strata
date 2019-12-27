@@ -4,6 +4,9 @@ import math
 STRONG_PATH_THRESHOLD = 4.0
 RANDOM_BIRTH_PROBABILITY = 0.2
 
+ALIVE = 1.0
+DEAD = 0.0
+
 
 def generate_random_value(prob=RANDOM_BIRTH_PROBABILITY):
     if random.random() <= prob:
@@ -46,7 +49,7 @@ def upward(node):
 def gamma(node):
     # initliazation, aka t=0
     if node == None:
-        return 0.0
+        return DEAD
 
     n_sum = 0.0
     for n in node.neighbors:
@@ -111,35 +114,54 @@ def gamma(node):
 
 
 def conway(node):
+    # initliazation, aka t=0
+    if node == None:
+        return generate_random_value(0.5)
+
+    # non-initialization
     n_sum = 0.0
     for n in node.neighbors:
         n_sum += n.value
-    # case 1: alive and 1 live neighbor -> die (underpopulation)
-    if node.value == 1.0 and n_sum <= 1.0:
-        return 1.0
-    # case 2: alive and 2 live neighbors -> live (okay)
-    elif node.value == 1.0 and n_sum == 2.0:
-        return 1.0
-    # case 2: alive and 3 live neighbors -> dead (overpopulation)
-    elif node.value == 1.0 and n_sum >= 3.0:
-        return 0.0
-    # case 3: dead and 3 live neighbors -> live (reproduction)
-    elif node.value == 0.0 and n_sum >= 3.0:
-        return 1.0
-    # case 4: n_sum is 0 and is dead, randomly become born if its a strong path
-    elif node.value == 0.0 and n_sum < 3.0:
-        return generate_random_value()
-    elif not node.children and node.path_sum > STRONG_PATH_THRESHOLD:
-        return 1.0
-    else:
-        print("unhandled case: value: ", node.value, "n_sum: ", n_sum)
-        return node.value
-        # return 0.0
 
-    # if node.path_sum < STRONG_PATH_THRESHOLD:
-    #     return generate_random_value()
-    # else:
-    #     return result
+    p_val = 0.0
+    # add parent to n_sum
+    if node.parent:
+        p_val = node.parent.value
+
+    c_sum = 0.0
+    # children detract
+    if node.children:
+        for c in node.children:
+            c_sum += c.value
+
+    result = 0.0
+
+    # special case: leaves
+    # IDEA 1:  Immutable
+    if not node.children:
+        return node.value
+
+    # IDEA 2: Scaled rules -- not working
+    # if not node.children:
+    #     if node.value == ALIVE and n_sum == 1.0:
+    #         return node.value
+    #     elif node.value == DEAD and n_sum == 2.0:
+    #         return ALIVE
+    #     else:
+    #         return DEAD
+
+    tot = c_sum + p_val + n_sum
+    # case 1: alive, 2 or 3 neighbors
+    if node.value == ALIVE and tot == 2.0 or tot == 3.0:
+        result = ALIVE  # stay alive
+    # case 2: dead and 3 neighbors
+    elif node.value == DEAD and tot == 3.0:
+        result = ALIVE
+    elif node.value == ALIVE:
+        result = DEAD  # die
+    else:
+        result = node.value  # die / stay dead
+    return result
 
 
 class Point():

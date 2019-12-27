@@ -30,7 +30,7 @@ args = parser.parse_args()
 BLACK = np.array([0, 0, 0], dtype='uint8')
 WHITE = np.array([1, 1, 1], dtype='uint8')
 
-INITIAL_LEAF_BIRTH_PROBABILIY = 0.000001
+INITIAL_LEAF_BIRTH_PROBABILIY = 0.9
 
 
 class main(pyglet.window.Window):
@@ -58,7 +58,8 @@ class main(pyglet.window.Window):
         self.out_dir = out_dir
 
         # self.q_tree = QTree(self.width, self.height, upward)
-        self.q_tree = QTree(self.width, self.height, gamma, self.depth)
+        # self.q_tree = QTree(self.width, self.height, gamma, self.depth)
+        self.q_tree = QTree(self.width, self.height, conway, self.depth)
 
         # Initialize the tree
         self.q_tree.setup(lambda x: self.tree_setup(x))
