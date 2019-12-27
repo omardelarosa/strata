@@ -40,6 +40,39 @@ python3 . \
 
 ## Examples
 
+Two rulesets have been implemented:
+
+1. Conway
+2. Gamma
+
+### Conway
+
+An update rule based on conway's game of life using the neighbor nodes + children + parent values to determine updates.
+
+Note: the "leaf" level (i.e. 1x1 pixel grid) is "immutable" and remains constant from t=0 onward.
+
+#### Sparse Initial Matrix
+
+`PROBABILITY_OF_LEAF_ALIVE_ON_START=0.02`
+
+| `t` | screenshot                           | notes                                      |
+| --- | ------------------------------------ | ------------------------------------------ |
+| 0   | ![](examples/conway_02init/t_0.png)  | Initialization, hardly any pixels          |
+| 1   | ![](examples/conway_02init/t_1.png)  |                                            |
+| 2   | ![](examples/conway_02init/t_2.png)  |                                            |
+| 3   | ![](examples/conway_02init/t_3.png)  |                                            |
+| 4   | ![](examples/conway_02init/t_4.png)  |                                            |
+| 5   | ![](examples/conway_02init/t_5.png)  |                                            |
+| 6   | ![](examples/conway_02init/t_6.png)  |                                            |
+| 7   | ![](examples/conway_02init/t_7.png)  |                                            |
+| 8   | ![](examples/conway_02init/t_8.png)  |                                            |
+| 9   | ![](examples/conway_02init/t_9.png)  |                                            |
+| 10  | ![](examples/conway_02init/t_10.png) | Mostly stable structures, cyclical updates |
+
+### Gamma
+
+A custom rule based on the unique properties of the quad tree.
+
 #### Sparse Initial Matrix
 
 `PROBABILITY_OF_LEAF_ALIVE_ON_START=0.000001`
